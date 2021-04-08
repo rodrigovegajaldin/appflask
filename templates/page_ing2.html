@@ -1,0 +1,707 @@
+<!--en este programa probajos de poner la parte de HTML y la parte de JAVASCRIPT en un solo programa-->
+
+<!DOCTYPE html>
+
+<html lang="es">
+<head>
+	<title>JavaScript</title>
+	<meta charset="UTF-8"><!--esto nos dice el tipo de codificacion html del documento-->
+	<meta name='viewport' content='width=device-width, initial-scale=1.0'>
+
+	<!--con esta linea importamos el fichero .css para poder darle estilo CON FLASK-->
+	<!--<link rel='stylesheet' type='text/css' href="{{url_for('static',filename='css/style.css')}}">-->
+
+	<script src="https://cdn.amcharts.com/lib/4/core.js"></script>
+	<script src="https://cdn.amcharts.com/lib/4/charts.js"></script>
+	<script src="https://cdn.amcharts.com/lib/4/themes/animated.js"></script>
+	<!--estas 3 lineas es para la grafica en forma de persona-->
+
+	<script type="text/javascript" src="https://cdn.jsdelivr.net/jquery/latest/jquery.min.js"></script>
+	<script type="text/javascript" src="https://cdn.jsdelivr.net/momentjs/latest/moment.min.js"></script>
+	<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
+	<link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
+	<!--esto es para el calendario-->
+
+</head>
+
+<body> 
+	<script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.3/dist/Chart.min.js"></script>
+	<!--esto es el link para las graficas-->
+
+	<!--<script src='https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.0/socket.io.js' charset='utf-8'></script>-->
+	<!--esto es link para el socket-->
+
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/3.0.4/socket.io.js" integrity="sha512-aMGMvNYu8Ue4G+fHa359jcPb1u+ytAF+P2SCb+PxrjCdO3n3ZTxJ30zuH39rimUggmTwmh2u7wvQsDTHESnmfQ==" crossorigin="anonymous"></script>
+	<!--esto es para la version de sockets compatible con gunicorn-->
+	
+	<!--<script src="http://code.jquery.com/jquery-3.5.1.min.js" integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0=" crossorigin="anonymous"></script>-->
+	<!--esto es para poder imprimir los datos en la pagina-->
+
+
+	<button onclick="realtime()">REALTIME</button>
+	<button onclick="history()">HISTORY</button>
+	<button onclick="stop()">STOP</button>
+	<p align="center"><a href=main ><button class=grey style="height:75px;width:150px">MAIN</button></a></p>
+	
+	<div id='questionary'>	
+		<br/>
+		<b>SELECT THE DATES:</b>
+		<input type="text" id="datefilter" value="" placeholder="click here" />	
+		<p>
+			<b>SELECT THE SENSOR</b>
+			<br/>
+			<input type="checkbox" name="check" value="oximeter"/>OXIMETER<br/>	
+			<input type="checkbox" name="check" value="flexometer"/>FLEXOMETER<br/>
+			<input type="checkbox" name="check" value="accelerometer"/>ACCELEROMETER<br/>
+			<br/>
+		</p>
+	</div>
+	<hr/>
+
+	<!--<button onclick="presionooxi()">OXIMETRO</button>
+	<button onclick="presionoflex()">FLEXOMETRO</button>
+	<button onclick="presionoacel()">ACELEROMETRO</button>
+	<hr/>-->
+
+	<div>
+		<a>Accelerometer value:</a>
+		<a id = 'accelvalue'></a>
+	</div>
+	<div>
+		<a>Oximeter value:</a>
+		<a id = 'oxivalue'></a>
+	</div>
+	<div>
+		<a>Flexometer value:</a>
+		<a id = 'flexvalue'></a>
+	</div>
+
+	<div id="oxygen"></div>
+	<style>
+		#oxygen {
+  			width: 100%;
+  			height: 400px;
+		}
+	</style>
+
+	<!--<div id='verdeflex'>
+	<img src="{{url_for('static',filename='img/verde.png')}}">
+	</div>
+	<div id='rojoflex'>
+	<img src="{{url_for('static',filename='img/rojo.png')}}">
+	</div>-->
+	<canvas id="chartspo2" width="200" height="50"></canvas>
+
+	<canvas id="chartflex" width="200" height="50"></canvas>
+
+	<!--<div id='verdeacel'>
+	<img src="{{url_for('static',filename='img/verde.png')}}">
+	</div>
+	<div id='rojoacel'>
+	<img src="{{url_for('static',filename='img/rojo.png')}}">
+	</div>-->
+	<canvas id="chartx" width="200" height="50"></canvas>
+	<canvas id="charty" width="200" height="50"></canvas>
+	<canvas id="chartz" width="200" height="50"></canvas>
+
+	<script>
+//-----------------------------------------------------------------------------------------------------
+//document.getElementById('rojoflex').style.display='none';
+//document.getElementById('verdeflex').style.display='none';
+//document.getElementById('rojoacel').style.display='none';
+//document.getElementById('verdeacel').style.display='none';
+document.getElementById('questionary').style.display='none';
+
+niveloxi=0
+am4core.ready(function() {
+
+// Themes begin
+am4core.useTheme(am4themes_animated);
+// Themes end
+
+// create chart
+var chart = am4core.create("oxygen", am4charts.GaugeChart);
+chart.innerRadius = am4core.percent(82);
+
+/**
+ * Normal axis
+ */
+
+var axis = chart.xAxes.push(new am4charts.ValueAxis());
+axis.min = 0;
+axis.max = 100;
+axis.strictMinMax = true;
+axis.renderer.radius = am4core.percent(80);
+axis.renderer.inside = true;
+axis.renderer.line.strokeOpacity = 1;
+axis.renderer.ticks.template.disabled = false
+axis.renderer.ticks.template.strokeOpacity = 1;
+axis.renderer.ticks.template.length = 10;
+axis.renderer.grid.template.disabled = true;
+axis.renderer.labels.template.radius = 40;
+axis.renderer.labels.template.adapter.add("text", function(text) {
+  return text + "%";
+})
+
+/**
+ * Axis for ranges
+ */
+
+var colorSet = new am4core.ColorSet();
+
+var axis2 = chart.xAxes.push(new am4charts.ValueAxis());
+axis2.min = 0;
+axis2.max = 100;
+axis2.strictMinMax = true;
+axis2.renderer.labels.template.disabled = true;
+axis2.renderer.ticks.template.disabled = true;
+axis2.renderer.grid.template.disabled = true;
+
+var range0 = axis2.axisRanges.create();
+range0.value = 0;
+range0.endValue = 50;
+range0.axisFill.fillOpacity = 1;
+range0.axisFill.fill = colorSet.getIndex(0);
+
+var range1 = axis2.axisRanges.create();
+range1.value = 50;
+range1.endValue = 100;
+range1.axisFill.fillOpacity = 1;
+range1.axisFill.fill = colorSet.getIndex(2);
+
+/**
+ * Label
+ */
+
+var label = chart.radarContainer.createChild(am4core.Label);
+label.isMeasured = false;
+label.fontSize = 45;
+label.x = am4core.percent(50);
+label.y = am4core.percent(100);
+label.horizontalCenter = "middle";
+label.verticalCenter = "bottom";
+label.text = "50%";
+
+
+/**
+ * Hand
+ */
+
+var hand = chart.hands.push(new am4charts.ClockHand());
+hand.axis = axis2;
+hand.innerRadius = am4core.percent(20);
+hand.startWidth = 10;
+hand.pin.disabled = true;
+hand.value = 50;
+
+hand.events.on("propertychanged", function(ev) {
+  range0.endValue = ev.target.value;
+  range1.value = ev.target.value;
+  label.text = axis2.positionToValue(hand.currentPosition).toFixed(1);
+  axis2.invalidate();
+});
+
+setInterval(function() {
+  var value = niveloxi;
+  var animation = new am4core.Animation(hand, {
+    property: "value",
+    to: value
+  }, 1000, am4core.ease.cubicOut).start();
+}, 2000);
+
+}); // end am4core.ready()	
+//----------------------------------------------------------------------------------------------------
+	var configspo2 = {
+				type: 'line',
+				data: {
+					labels: [],
+					datasets: [{
+						label: 'SPO2',
+						//backgroundColor: 'rgba(255, 99, 132, 0.2)',
+						backgroundColor: 'rgb(54, 162, 235)',
+						//borderColor: 'rgba(255, 99, 132, 0.2)',
+						borderColor: 'rgb(54, 162, 235)',
+						data: [],
+						fill: false,
+					}]
+				},
+				options: {
+					responsive: true,
+					title: {
+						display: true,
+						text: 'SPO2 DATA'
+					},
+					tooltips: {
+						mode: 'index',
+						intersect: false,
+					},
+					hover: {
+						mode: 'nearest',
+						intersect: true
+					},
+					scales: {
+						xAxes: [{
+							display: true,
+							scaleLabel: {
+								display: true,
+								labelString: 'Time'
+							}
+						}],
+						yAxes: [{
+							display: true,
+							scaleLabel: {
+								display: true,
+								labelString: 'Value'
+							}
+						}]
+					}
+				}
+			};
+	var configflex = {
+				type: 'line',
+				data: {
+					labels: [],
+					datasets: [{
+						label: 'flexometer',
+						//backgroundColor: 'rgba(255, 99, 132, 0.2)',
+						backgroundColor: 'rgb(54, 162, 235)',
+						//borderColor: 'rgba(255, 99, 132, 0.2)',
+						borderColor: 'rgb(54, 162, 235)',
+						data: [],
+						fill: false,
+					}]
+				},
+				options: {
+					responsive: true,
+					title: {
+						display: true,
+						text: 'FLEXOMETER DATA'
+					},
+					tooltips: {
+						mode: 'index',
+						intersect: false,
+					},
+					hover: {
+						mode: 'nearest',
+						intersect: true
+					},
+					scales: {
+						xAxes: [{
+							display: true,
+							scaleLabel: {
+								display: true,
+								labelString: 'Time'
+							}
+						}],
+						yAxes: [{
+							display: true,
+							scaleLabel: {
+								display: true,
+								labelString: 'Value'
+							}
+						}]
+					}
+				}
+			};
+
+		var configx = {
+				type: 'line',
+				data: {
+					labels: [],
+					datasets: [{
+						label: 'X',
+						//backgroundColor: 'rgba(255, 99, 132, 0.2)',
+						backgroundColor: 'rgb(54, 162, 235)',
+						//borderColor: 'rgba(255, 99, 132, 0.2)',
+						borderColor: 'rgb(54, 162, 235)',
+						data: [],
+						fill: false,
+					}]
+				},
+				options: {
+					responsive: true,
+					title: {
+						display: true,
+						text: 'ACCELEROMETER DATA "X" AXIS'
+					},
+					tooltips: {
+						mode: 'index',
+						intersect: false,
+					},
+					hover: {
+						mode: 'nearest',
+						intersect: true
+					},
+					scales: {
+						xAxes: [{
+							display: true,
+							scaleLabel: {
+								display: true,
+								labelString: 'Time'
+							}
+						}],
+						yAxes: [{
+							display: true,
+							scaleLabel: {
+								display: true,
+								labelString: 'Value'
+							}
+						}]
+					}
+				}
+			};
+		var configy = {
+				type: 'line',
+				data: {
+					labels: [],
+					datasets: [{
+						label: 'Y',
+						//backgroundColor: 'rgba(255, 99, 132, 0.2)',
+						backgroundColor: 'rgb(54, 162, 235)',
+						//borderColor: 'rgba(255, 99, 132, 0.2)',
+						borderColor: 'rgb(54, 162, 235)',
+						data: [],
+						fill: false,
+					}]
+				},
+				options: {
+					responsive: true,
+					title: {
+						display: true,
+						text: 'ACCELEROMETER DATA "Y" AXIS'
+					},
+					tooltips: {
+						mode: 'index',
+						intersect: false,
+					},
+					hover: {
+						mode: 'nearest',
+						intersect: true
+					},
+					scales: {
+						xAxes: [{
+							display: true,
+							scaleLabel: {
+								display: true,
+								labelString: 'Time'
+							}
+						}],
+						yAxes: [{
+							display: true,
+							scaleLabel: {
+								display: true,
+								labelString: 'Value'
+							}
+						}]
+					}
+				}
+			};
+			function generateDisplayObject(text,label,backgroundcolor,bordercolor){
+				var result = {}
+				result : ' '
+
+
+
+
+
+
+
+				return result;
+			}
+			var configz = generateDisplayObject('ACCELEROMETER DATA "Z" AXIS','Z','rgb(54, 162, 235)','rgb(54, 162, 235)');
+		/*var configz = {
+				type: 'line',
+				data: {
+					labels: [],
+					datasets: [{
+						label: 'Z',
+						//backgroundColor: 'rgba(255, 99, 132, 0.2)',
+						backgroundColor: 'rgb(54, 162, 235)',
+						//borderColor: 'rgba(255, 99, 132, 0.2)',
+						borderColor: 'rgb(54, 162, 235)',
+						data: [],
+						fill: false,
+					}]
+				},
+				options: {
+					responsive: true,
+					title: {
+						display: true,
+						text: 'ACCELEROMETER DATA "Z" AXIS'
+					},
+					tooltips: {
+						mode: 'index',
+						intersect: false,
+					},
+					hover: {
+						mode: 'nearest',
+						intersect: true
+					},
+					scales: {
+						xAxes: [{
+							display: true,
+							scaleLabel: {
+								display: true,
+								labelString: 'Time'
+							}
+						}],
+						yAxes: [{
+							display: true,
+							scaleLabel: {
+								display: true,
+								labelString: 'Value'
+							}
+						}]
+					}
+				}
+			};*/
+
+			window.onload = function() {
+				var ctxspo2 = document.getElementById('chartspo2').getContext('2d');
+				window.myLinespo2 = new Chart(ctxspo2, configspo2);
+
+				var ctxflex = document.getElementById('chartflex').getContext('2d');
+				window.myLineflex = new Chart(ctxflex, configflex);
+				
+				var ctxx = document.getElementById('chartx').getContext('2d');
+				window.myLinex = new Chart(ctxx, configx);
+
+				var ctxy = document.getElementById('charty').getContext('2d');
+				window.myLiney = new Chart(ctxy, configy);
+
+				var ctxz = document.getElementById('chartz').getContext('2d');
+				window.myLinez = new Chart(ctxz, configz);
+
+			};
+
+			/*window.onload = function() {
+				var ctx2 = document.getElementById('myChart2').getContext('2d');
+				window.myLine2 = new Chart(ctx2, config2);
+			};*/	
+		const socket = io();
+		
+		//var url = 'http://'+ document.domain+':'+location.port;
+		//var socket = io.connect(url);
+
+		socket.on('handshake',function(msg){
+			console.log('the valid dates are: ',msg)
+		})
+		socket.on('request',function(msg){
+			//console.log('resquest',msg)
+			alert('request:\n'+msg)
+		})
+
+		socket.on('msg',function(msg){
+			document.getElementById('oxivalue').textContent = msg;
+		})
+
+		socket.on('o',function(msg){
+			//$('#mensajes').append('<li>'+msg+'</li>');
+			//var niveloxi = 50
+			//configspo2.data.labels.push(new Date(msg['measure_t']/1000));
+			//var msg = decodeURIComponent(escape(msgo)).toString();
+			
+			console.log('me llego pensaje')
+			document.getElementById('oxivalue').textContent = parseFloat(msg['value1']);
+			configspo2.data.labels.push(new Date(msg['timestamp']));
+
+			document.getElementById('oxivalue').textContent = parseFloat(msg['value1']);
+			//console.log('recivi el mensaje')
+			niveloxi = parseFloat(msg['value1']);
+
+			//console.log('recivi el mensaje')
+			configspo2.data.datasets.forEach(function(dataset) {
+				dataset.data.push(parseFloat(msg['value1']));
+			});
+			if (configspo2.data.labels.length>100){
+				configspo2.data.labels.shift(); // remove the label first
+
+				configspo2.data.datasets.forEach(function(dataset) {
+					dataset.data.shift();
+				})
+			};
+					window.myLinespo2.update();
+		})
+
+		socket.on('f',function(msg){
+			//$('#mensajes').append('<li>'+msg+'</li>');
+
+			document.getElementById('flexvalue').textContent = parseFloat(msg['value1']);
+
+			configflex.data.datasets.forEach(function(dataset) {
+				dataset.data.push(parseFloat(msg['value1']));
+			});
+			configflex.data.labels.push(new Date(msg['measure_t']));
+			//console.log('recivi el mensaje')
+
+			if (configflex.data.labels.length>100){
+			configflex.data.labels.shift(); // remove the label first
+
+			configflex.data.datasets.forEach(function(dataset) {
+				dataset.data.shift();
+				//dataset.labels.shift();
+			})
+		};
+				window.myLineflex.update();
+
+			/*if (msg['cough']=='true'){
+				document.getElementById('rojoflex').style.display='block';
+				document.getElementById('verdeflex').style.display='none';
+			}
+			else{
+				document.getElementById('rojoflex').style.display='none';
+				document.getElementById('verdeflex').style.display='block';
+			}*/
+			
+		})
+
+		socket.on('a',function(msg){
+			//$('#mensajes').append('<li>'+msg+'</li>');
+
+			document.getElementById('accelvalue').textContent = msg['value'][0];
+			configx.data.labels.push(new Date(parseFloat(msg['measure_t'])/1000));//tenemos que poner /1000 poq enviamos *1000000 y para que reconosca el timestamp tenemos que *1000
+			configx.data.datasets.forEach(function(dataset) {
+				dataset.data.push(parseFloat(msg['value'][0]));
+			});
+			configy.data.labels.push(new Date(parseFloat(msg['measure_t'])/1000));//tenemos que poner /1000 poq enviamos *1000000 y para que reconosca el timestamp tenemos que *1000
+			configy.data.datasets.forEach(function(dataset) {
+				dataset.data.push(parseFloat(msg['value'][1]));
+			});
+			configz.data.labels.push(new Date(parseFloat(msg['measure_t'])/1000));//tenemos que poner /1000 poq enviamos *1000000 y para que reconosca el timestamp tenemos que *1000
+			configz.data.datasets.forEach(function(dataset) {
+				dataset.data.push(parseFloat(msg['value'][2]));
+			});
+
+			if (configx.data.labels.length>100){
+				configx.data.labels.shift(); // remove the label first
+				configx.data.datasets.forEach(function(dataset) {
+					dataset.data.shift();
+				})
+				configy.data.labels.shift(); // remove the label first
+				configy.data.datasets.forEach(function(dataset) {
+					dataset.data.shift();
+				})
+				configz.data.labels.shift(); // remove the label first
+				configz.data.datasets.forEach(function(dataset) {
+					dataset.data.shift();
+				})
+			};
+				window.myLinex.update();
+				window.myLiney.update();
+				window.myLinez.update();
+
+			/*if (msg['cough']=='true'){
+				document.getElementById('rojoacel').style.display='block';
+				document.getElementById('verdeacel').style.display='none';
+			}
+			else{
+				document.getElementById('rojoacel').style.display='none';
+				document.getElementById('verdeacel').style.display='block';
+			}*/
+
+		})
+
+		function realtime(){
+			document.getElementById('questionary').style.display='none';
+
+			//console.log('numero de sensores solicitados:', lista.length);
+			//console.log('checkbox',document.getElementById("check").value)
+			//console.log(document.querySele('check').checked);
+			socket.emit('request','realtime');
+		}
+
+		function history(){
+			//console.log('pedi historial')
+			//socket.emit('request','history');
+			var fechabool = false
+			if(document.getElementById('questionary').style.display == 'block'){
+				/*if(validate(document.getElementById("inicio").value) && validate(document.getElementById("fin").value)){
+					//socket.emit('request',document.getElementById("inicio").value + ',' + document.getElementById("fin").value);
+					fechabool = true
+				}else{
+					console.log('METISTE MAL')
+				}*/	
+				var daterange = document.getElementById("datefilter").value
+				var sensorchecked = document.getElementsByName('check');
+				var lista = []
+				for (var sensor of sensorchecked) {
+					if (sensor.checked)
+						//console.log(ckboxdata.value)
+						lista.push(sensor.value);
+				}
+				if (daterange.length!=0 && lista.length!=0){
+					socket.emit('request', daterange + ',' + lista);
+					console.log(daterange + ',' + lista)
+				}else{
+					alert('ESCOGA ALGUN SENSOR');
+				}
+				//console.log('la fecha seleccionada es: ',document.getElementById("datefilter").value.length);
+
+			}else{
+				alert('ENTER THE DATA ADN PRESS "HISTORY" AGAIN');
+			}
+			document.getElementById('questionary').style.display='block';
+		}		
+
+		function stop(){
+			//socket.emit('request','terminar');
+			socket.emit('request','stop');
+		}
+
+		/*function validate(datos){
+			var lista = datos.split('/');
+			var fechabool = true
+			var horabool = true
+			if (lista.length != 5){
+				alert('FORMATO INCORRECTO\nday/month/year/hour/min');
+				fechabool = false
+			}else if(parseInt(lista[0])<0 || parseInt(lista[0])>31 || parseInt(lista[1])<0 || parseInt(lista[1])>12 || parseInt(lista[2])<2010 || parseInt(lista[2])>2020 || parseInt(lista[3])<0 || parseInt(lista[3])>23 || parseInt(lista[4])<0 || parseInt(lista[4])>59){
+					alert('FORMATO INCORRECTO\nday/month/year/hour/min');
+					fechabool = false
+			}
+
+			return fechabool
+		}*/
+		$(function() {
+			$('input[id="datefilter"]').daterangepicker({
+			    autoUpdateInput: false,
+			    isInvalidDate : function(arg){
+			      	if (arg.day() == 0 || arg.day() == 6) return true;
+					 var thisMonth = arg._d.getMonth() + 1; // Months are 0 based
+					if (thisMonth < 10) {
+					    thisMonth = "0" + thisMonth; // Leading 0
+					}
+					var thisDate = arg._d.getDate();
+					if (thisDate < 10) {
+					    thisDate = "0" + thisDate; // Leading 0
+					}
+					var thisYear = arg._d.getYear() + 1900; // Years are 1900 based
+
+					var thisCompare = thisMonth + "/" + thisDate + "/" + thisYear;
+
+					//if ($.inArray(thisCompare, disabledArr) != -1) {
+					if (thisCompare == "12/08/2020"){
+					    return true;
+					}
+			    },
+			    //minDate : moment().startOf('hour'),
+			    //maxDate : moment().startOf('hour').add(32, 'hour'),
+			    ranges : {
+			      	'hoy dia': [moment().startOf('hour'),moment().startOf('hour').add(32, 'hour')]},
+			    locale: {
+			        cancelLabel: 'Clear'
+			    }
+			});
+
+			$('input[id="datefilter"]').on('apply.daterangepicker', function(ev, picker) {
+			    $(this).val(picker.startDate.format('MM/DD/YYYY') + ' - ' + picker.endDate.format('MM/DD/YYYY'));
+			});
+
+			$('input[id="datefilter"]').on('cancel.daterangepicker', function(ev, picker) {
+			    $(this).val('');
+			});
+		});
+
+	</script>
+</body>
+</html>
